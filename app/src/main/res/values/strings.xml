@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Trying Sketch</string>
+    <string name="stroke">Stroke</string>
+    <string name="eraser">Eraser</string>
+    <string name="undo">Undo</string>
+    <string name="redo">Redo</string>
+    <string name="colors">Colors</string>
+
+    <string name="erase_sketch">Erase sketch?</string>
+    <string name="confirm">Confirm</string>
+
+
+</resources>
