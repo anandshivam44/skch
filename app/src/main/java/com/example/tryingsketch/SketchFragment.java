@@ -1,21 +1,22 @@
 package com.example.tryingsketch;
 
-import androidx.fragment.app.Fragment;
-
+import android.annotation.SuppressLint;
+import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.DisplayMetrics;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout.LayoutParams;
 import android.widget.PopupWindow;
@@ -24,24 +25,28 @@ import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.view.menu.MenuBuilder;
+import androidx.appcompat.view.menu.MenuPopupHelper;
+import androidx.appcompat.widget.PopupMenu;
 import androidx.fragment.app.Fragment;
-import butterknife.BindView;
-import butterknife.ButterKnife;
+
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.larswerkman.holocolorpicker.ColorPicker;
+
+import java.io.File;
+import java.io.FileOutputStream;
+
+import butterknife.BindView;
+import butterknife.ButterKnife;
 import it.feio.android.checklistview.utils.AlphaManager;
+
 //import it.feio.android.omninotes.helpers.LogDelegate;
 //import it.feio.android.omninotes.models.ONStyle;
 //import it.feio.android.omninotes.models.listeners.OnDrawChangedListener;
 //import it.feio.android.omninotes.models.views.SketchView;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 
 
 public class SketchFragment extends Fragment implements OnDrawChangedListener {
-
-
 
 
     @BindView(R.id.sketch_stroke)
@@ -56,6 +61,14 @@ public class SketchFragment extends Fragment implements OnDrawChangedListener {
     ImageView redo;
     @BindView(R.id.sketch_erase)
     ImageView erase;
+    @BindView(R.id.sketch_save)
+    ImageView sketchSave;
+    @BindView(R.id.sketch_menu)
+    ImageView sketchMenu;
+
+    ImageButton cancel;
+
+
     private int seekBarStrokeProgress;
     private int seekBarEraserProgress;
     private View popupLayout;
@@ -64,18 +77,20 @@ public class SketchFragment extends Fragment implements OnDrawChangedListener {
     private ImageView eraserImageView;
     private int size;
     private ColorPicker mColorPicker;
+    PopupWindow popup;
 
 
     @Override
-    public void onCreate (Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
-        setRetainInstance(false);
+        setRetainInstance(true);//it was false before
+
     }
 
 
     @Override
-    public void onStart () {
+    public void onStart() {
 //        ((OmniNotes) getActivity().getApplication()).getAnalyticsHelper().trackScreenView(getClass().getName());
 
         super.onStart();
@@ -84,14 +99,14 @@ public class SketchFragment extends Fragment implements OnDrawChangedListener {
 
     @SuppressWarnings("unchecked")
     @Override
-    public View onCreateView (LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_sketch, container, false);
         ButterKnife.bind(this, view);
         return view;
     }
 
     @Override
-    public void onActivityCreated (Bundle savedInstanceState) {
+    public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
 //        getMainActivity().getToolbar().setNavigationOnClickListener(v -> getActivity().onBackPressed());//made changes here
@@ -138,23 +153,37 @@ public class SketchFragment extends Fragment implements OnDrawChangedListener {
             }
         });
 
+
         undo.setOnClickListener(v -> mSketchView.undo());
 
         redo.setOnClickListener(v -> mSketchView.redo());
 
         erase.setOnClickListener(new OnClickListener() {
             @Override
-            public void onClick (View v) {
+            public void onClick(View v) {
                 askForErase();
             }
 
-            private void askForErase () {
+            private void askForErase() {
                 new MaterialDialog.Builder(getActivity())
                         .content(R.string.erase_sketch)
                         .positiveText(R.string.confirm)
                         .onPositive((dialog, which) -> mSketchView.erase()).build().show();
             }
         });
+        sketchSave.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                saveSketch();
+            }
+        });
+        sketchMenu.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showPopupOption(v);
+            }
+        });
+
 
         // Inflate the popup_layout.XML
         LayoutInflater inflater = (LayoutInflater) getActivity().getSystemService(
@@ -183,10 +212,76 @@ public class SketchFragment extends Fragment implements OnDrawChangedListener {
         mColorPicker.setOnColorChangedListener(mSketchView::setStrokeColor);
         mColorPicker.setColor(mSketchView.getStrokeColor());
         mColorPicker.setOldCenterColor(mSketchView.getStrokeColor());
+        cancel=popupLayout.findViewById(R.id.cancel_1);
+        cancel.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                popup.dismiss();
+            }
+        });
+        ImageButton cancel2=popupEraserLayout.findViewById(R.id.cancel_2);
+        cancel2.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                popup.dismiss();
+            }
+        });
     }
 
+    private void saveSketch() {
+        Intent intent = new Intent(getContext(), SaveSketch.class);
+        View root = getView().findViewById(R.id.drawing);
+        root.setDrawingCacheEnabled(true);
+        Bitmap bitmap = Bitmap.createBitmap(root.getDrawingCache());
+        root.setDrawingCacheEnabled(false);
+        BitmapHelper.getInstance().setBitmap(bitmap);
+        if (bitmap == null) {
+            Toast.makeText(getContext(), "NULL Bitmap", Toast.LENGTH_SHORT).show();
+        }
+        startActivity(intent);
+    }
+
+
+    @SuppressLint("RestrictedApi")
+    private void showPopupOption(View v) {
+        PopupMenu popup = new PopupMenu(getContext(), v);
+        popup.getMenuInflater().inflate(R.menu.action_menu, popup.getMenu());
+
+        popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+            public boolean onMenuItemClick(MenuItem menu_item) {
+                switch (menu_item.getItemId()) {
+                    case R.id.one://
+
+                        saveSketch();
+
+                        break;
+
+//                    case R.id.two:// about us
+//
+//                        break;
+
+                    case R.id.three://about us
+                        Uri uri1 = Uri.parse("https://www.facebook.com/teamvoyagerfb"); // missing 'http://' will cause crashed
+                        Intent intent1 = new Intent(Intent.ACTION_VIEW, uri1);
+                        startActivity(intent1);
+                        break;
+                    case R.id.four://rate us
+
+                }
+                return true;
+            }
+        });
+
+        MenuPopupHelper menuHelper = new MenuPopupHelper(getContext(), (MenuBuilder) popup.getMenu(), v);
+        menuHelper.setForceShowIcon(true);
+        menuHelper.setGravity(Gravity.END);
+        menuHelper.show();
+
+    }
+
+
     @Override
-    public boolean onOptionsItemSelected (MenuItem item) {
+    public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
             getActivity().onBackPressed();
         } else {
@@ -197,7 +292,7 @@ public class SketchFragment extends Fragment implements OnDrawChangedListener {
     }
 
 
-    public void save () {
+    public void save() {
         Bitmap bitmap = mSketchView.getBitmap();
         if (bitmap != null) {
 
@@ -214,12 +309,13 @@ public class SketchFragment extends Fragment implements OnDrawChangedListener {
 //                }
 
             } catch (Exception e) {
-                Toast.makeText(getActivity(), "Error in saving e="+e.getMessage(), Toast.LENGTH_SHORT).show();            }
+                Toast.makeText(getActivity(), "Error in saving e=" + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
 
-    private void showPopup (View anchor, final int eraserOrStroke) {
+    private void showPopup(View anchor, final int eraserOrStroke) {
 
         boolean isErasing = eraserOrStroke == SketchView.ERASER;
 
@@ -229,7 +325,7 @@ public class SketchFragment extends Fragment implements OnDrawChangedListener {
         getActivity().getWindowManager().getDefaultDisplay().getMetrics(metrics);
 
         // Creating the PopupWindow
-        PopupWindow popup = new PopupWindow(getActivity());
+        popup = new PopupWindow(getActivity());
         popup.setContentView(isErasing ? popupEraserLayout : popupLayout);
         popup.setWidth(WindowManager.LayoutParams.WRAP_CONTENT);
         popup.setHeight(WindowManager.LayoutParams.WRAP_CONTENT);
@@ -237,6 +333,7 @@ public class SketchFragment extends Fragment implements OnDrawChangedListener {
         popup.setOnDismissListener(() -> {
             if (mColorPicker.getColor() != oldColor) {
                 mColorPicker.setOldCenterColor(oldColor);
+                Toast.makeText(getContext(), "Popup dismissed", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -254,20 +351,20 @@ public class SketchFragment extends Fragment implements OnDrawChangedListener {
                 .findViewById(R.id.stroke_seekbar));
         mSeekBar.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
             @Override
-            public void onStopTrackingTouch (SeekBar seekBar) {
+            public void onStopTrackingTouch(SeekBar seekBar) {
                 // Nothing to do
             }
 
 
             @Override
-            public void onStartTrackingTouch (SeekBar seekBar) {
+            public void onStartTrackingTouch(SeekBar seekBar) {
                 // Nothing to do
             }
 
 
             @Override
-            public void onProgressChanged (SeekBar seekBar, int progress,
-                                           boolean fromUser) {
+            public void onProgressChanged(SeekBar seekBar, int progress,
+                                          boolean fromUser) {
                 // When the seekbar is moved a new size is calculated and the new shape
                 // is positioned centrally into the ImageView
                 setSeekbarProgress(progress, eraserOrStroke);
@@ -278,7 +375,7 @@ public class SketchFragment extends Fragment implements OnDrawChangedListener {
     }
 
 
-    protected void setSeekbarProgress (int progress, int eraserOrStroke) {
+    protected void setSeekbarProgress(int progress, int eraserOrStroke) {
         int calcProgress = progress > 1 ? progress : 1;
 
         int newSize = Math.round((size / 100f) * calcProgress);
@@ -300,7 +397,7 @@ public class SketchFragment extends Fragment implements OnDrawChangedListener {
 
 
     @Override
-    public void onDrawChanged () {
+    public void onDrawChanged() {
         // Undo
         if (mSketchView.getPaths().isEmpty()) {
             AlphaManager.setAlpha(undo, 1f);
@@ -316,10 +413,9 @@ public class SketchFragment extends Fragment implements OnDrawChangedListener {
     }
 
 
-    private MainActivity getMainActivity () {
-        return (MainActivity) getActivity();
-    }
-
+//    private MainActivity getMainActivity () {
+//        return (MainActivity) getActivity();
+//    }
 
 
 }

@@ -25,6 +25,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.util.Pair;
 import android.view.MotionEvent;
 import android.view.View;
@@ -62,6 +63,7 @@ public class SketchView extends View implements OnTouchListener {
     private Bitmap bitmap;
 
     private int mode = STROKE;
+    private final String TAG="MyTag";
 
     private OnDrawChangedListener onDrawChangedListener;
 
@@ -147,7 +149,8 @@ public class SketchView extends View implements OnTouchListener {
                 break;
             default:
 //        LogDelegate.e("Wrong element choosen: " + event.getAction());
-                Toast.makeText(mContext, "Error in Sketch View", Toast.LENGTH_SHORT).show();
+                Toast.makeText(mContext, "E 1 wrong element chosen", Toast.LENGTH_SHORT).show();
+                Log.d(TAG, "E 1 wrong element chosen ");
         }
         return true;
     }
@@ -277,8 +280,8 @@ public class SketchView extends View implements OnTouchListener {
                 break;
             default:
 //        LogDelegate.e("Wrong element choosen: " + eraserOrStroke);
-                Toast.makeText(mContext, "Error in Sketch View", Toast.LENGTH_SHORT).show();
-
+                Toast.makeText(mContext, "E2 Wrong element chosen", Toast.LENGTH_SHORT).show();
+                Log.d(TAG, "E2 Wrong element chosen");
         }
 
     }

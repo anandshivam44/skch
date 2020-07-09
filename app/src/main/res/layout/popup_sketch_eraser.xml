@@ -26,13 +26,26 @@
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin" 
     android:minWidth="210dp">
-            
-    <TextView 
+
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/stroke"        
-        android:textSize="10sp"
-        />
+        android:layout_height="wrap_content">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/stroke"
+            android:layout_alignParentStart="true"
+            android:textSize="10sp"/>
+        <ImageButton
+            android:id="@+id/cancel_2"
+            android:src="@drawable/vector_cancel"
+            android:layout_alignParentEnd="true"
+            android:background="#00ffffff"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity=""
+            />
+    </RelativeLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
